@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#171407">
+<title>THE BACKROOMS VR — v8 La Sombra</title>
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+<style>
+:root{color-scheme:dark;--gold:#e8c76a;--panel:rgba(17,15,8,.92)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#171407;color:#f4e7b6;font-family:ui-monospace,Menlo,Consolas,monospace;overscroll-behavior:none;touch-action:none}
+a-scene{position:fixed!important;inset:0;width:100%!important;height:100%!important;z-index:1}
+#look-zone{position:fixed;z-index:6;top:0;right:0;width:58%;height:100%;touch-action:none;background:transparent}
+@media(hover:hover) and (pointer:fine){#look-zone{width:100%;cursor:grab}#look-zone:active{cursor:grabbing}}
+.overlay{position:fixed;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.55) 100%),repeating-linear-gradient(0deg,rgba(0,0,0,.04) 0 1px,transparent 1px 3px)}
+#glitch-canvas{position:fixed;inset:0;z-index:8;pointer-events:none;width:100%;height:100%;opacity:0;mix-blend-mode:hard-light}
+#fall-overlay{position:fixed;inset:0;z-index:25;pointer-events:none;background:#000;opacity:0;transition:opacity .35s}
+#start-overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,8,5,.96);pointer-events:auto;overflow:auto}
+.panel{width:min(100%,450px);padding:24px 21px;border:1px solid #b18b3d88;border-radius:18px;background:linear-gradient(145deg,#2b230ef7,#100f08f7);box-shadow:0 18px 60px #000c;text-align:center}
+.eyebrow{display:inline-block;color:#e5bd55;font-size:11px;letter-spacing:.18em;border:1px solid #8b6b2c;border-radius:30px;padding:6px 11px;margin-bottom:12px}
+h1{color:#f4d77d;font-size:clamp(25px,7vw,34px);margin:0 0 10px}
+p{line-height:1.55;font-size:12px;color:#d5c99e}
+.instructions{text-align:left;background:#0006;border:1px solid #725a25;border-radius:10px;padding:12px;margin:16px 0}
+.instructions p{margin:5px 0}
+button{font:inherit;cursor:pointer;border:1px solid #9d792e;border-radius:10px;padding:10px 12px;color:#f7e7b1;background:#33290f;touch-action:manipulation}
+button:active{transform:scale(.97)}
+#btn-start{width:100%;padding:14px;font-weight:900;letter-spacing:.08em;color:#171204;border:0;background:linear-gradient(90deg,#bd842b,#f0cf68)}
+#btn-start:disabled{opacity:.55;cursor:wait}
+#hud{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;z-index:12;display:none;gap:6px;flex-direction:column;pointer-events:none;max-width:68vw}
+.hud-chip{padding:7px 10px;border:1px solid #8c702e88;border-radius:8px;background:var(--panel);color:#f0d67f;font-size:10px;box-shadow:0 3px 12px #0005}
+#threat-chip{color:#ff6961;border-color:#b0303088}
+#actions{position:fixed;top:max(12px,env(safe-area-inset-top));right:10px;z-index:15;display:none;gap:6px;pointer-events:auto}
+#actions button{font-size:10px;padding:9px 8px;background:var(--panel)}
+#joystick-zone{position:fixed;z-index:16;display:none;left:max(18px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;border:2px solid #e2c66b88;background:#2b251b99;backdrop-filter:blur(5px);touch-action:none;align-items:center;justify-content:center;pointer-events:auto;box-shadow:0 4px 18px #0007}
+#joystick-knob{width:52px;height:52px;border-radius:50%;background:#d8b957dc;box-shadow:0 0 14px #d8b95766;pointer-events:none}
+#hint{position:fixed;z-index:12;display:none;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:max-content;max-width:65vw;text-align:center;font-size:10px;color:#eadba9;background:#090805c9;padding:8px 10px;border-radius:8px;pointer-events:none}
+#message{position:fixed;z-index:28;display:none;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86vw,380px);padding:18px;text-align:center;border:1px solid #d5b65d;background:#111009ed;border-radius:14px;box-shadow:0 10px 40px #000b;pointer-events:auto}
+#message h2{margin:0 0 8px;color:#f1d477;font-size:20px}
+#message p{margin:6px 0 14px;white-space:pre-line}
+#message button{margin:3px}
+#error-box{display:none;margin-top:12px;color:#ffb5a8;font-size:12px}
+@media(max-width:380px){#actions button{padding:8px 6px;font-size:9px}#joystick-zone{width:116px;height:116px}#joystick-knob{width:46px;height:46px}#hint{font-size:9px}}
+</style>
+</head>
+<body>
+<div class="overlay"></div><canvas id="glitch-canvas"></canvas><div id="fall-overlay"></div>
+<div id="look-zone" aria-label="Zona para mirar"></div>
+<div id="start-overlay"><div class="panel">
+ <div class="eyebrow">HORROR PSICOLÓGICO VR · V8 LA SOMBRA</div><h1>THE BACKROOMS</h1>
+ <p>Encuentra la llave, activa el portal y escapa. Algo avanza por los pasillos: una sombra que corrompe la señal y se traga la luz.</p>
+ <div class="instructions">
+  <p><b>Móvil:</b> joystick izquierdo para moverte; desliza la derecha para mirar.</p>
+  <p><b>PC:</b> WASD o flechas para moverte; arrastra el mouse para mirar.</p>
+  <p><b>VR:</b> stick izquierdo para caminar; mirar hacia abajo o seleccionar para avanzar.</p>
+  <p><b>La sombra:</b> apuntala con la linterna para frenarla. Si las luces parpadean y la imagen se rompe, está cerca.</p>
+  <p><b>Objetivo:</b> encuentra la llave roja y luego entra en el portal.</p>
+ </div>
+ <button id="btn-start" disabled>INICIALIZANDO MOTOR 3D…</button><div id="error-box"></div>
+</div></div>
+<div id="hud">
+ <div class="hud-chip" id="timer">● REC 00:00</div><div class="hud-chip" id="level-name">NIVEL 0 — THE LOBBY</div>
+ <div class="hud-chip" id="hud-status">Localiza la llave</div><div class="hud-chip" id="threat-chip">SEÑAL: ESTABLE</div>
+</div>
+<div id="actions"><button id="btn-audio">🔊 Sonido</button><button id="btn-flashlight">🔦 Linterna</button></div>
+<div id="joystick-zone"><div id="joystick-knob"></div></div><div id="hint">Joystick: moverse · Lado derecho: mirar</div>
+<div id="message"><h2 id="message-title">Nivel superado</h2><p id="message-text"></p><button id="message-primary">Continuar</button><button id="message-secondary">Reiniciar nivel</button></div>
+
+<a-scene id="scene" embedded
+ renderer="antialias:false;colorManagement:true;physicallyCorrectLights:false;powerPreference:high-performance"
+ vr-mode-ui="enabled:true" device-orientation-permission-ui="enabled:true"
+ background="color:#82764a" fog="type:exponential;color:#82764a;density:0.024" loading-screen="enabled:false">
+ <a-entity id="rig" position="2.4 0 2.4">
+  <a-camera id="camera" position="0 1.62 0" look-controls="enabled:true;touchEnabled:false;mouseEnabled:false;magicWindowTrackingEnabled:false" wasd-controls="enabled:false">
+   <a-entity id="flashlight" light="type:spot;color:#fff2d4;intensity:1.85;angle:36;penumbra:.6;distance:13.5;decay:1.4" position="0 -.12 -.12"></a-entity>
+   <a-text id="vr-text" value="" align="center" width="1.6" color="#f4d77d" position="0 -.32 -1.1" visible="false"></a-text>
+   <!-- [v8] Velo oscuro en VR (antes rojo): la sombra oscurece la visión al acercarse -->
+   <a-plane id="vr-glitch-plane" position="0 0 -.5" width=".9" height=".9" material="shader:flat;transparent:true;opacity:0;color:#080000;depthTest:false"></a-plane>
+  </a-camera>
+ </a-entity>
+ <a-light id="ambient" type="ambient" color="#fff0c2" intensity=".68"></a-light>
+ <a-light id="main-light" type="directional" color="#fff2c9" intensity=".28" position="-4 8 5"></a-light>
+ <a-entity id="lamp-light-0" light="type:point;color:#ffe8a8;intensity:0;distance:8;decay:1.6"></a-entity>
+ <a-entity id="lamp-light-1" light="type:point;color:#ffe8a8;intensity:0;distance:8;decay:1.6"></a-entity>
+ <a-plane id="floor" position="24 0 24" rotation="-90 0 0" width="50.4" height="50.4" material="color:#65593c;roughness:1"></a-plane>
+ <a-plane id="ceiling" position="24 3.1 24" rotation="90 0 0" width="50.4" height="50.4" material="color:#c2b596;roughness:1"></a-plane>
+ <a-entity id="maze-container"></a-entity>
+ <!-- [v8] La sombra se construye por código (shader propio). Este contenedor solo la posiciona. -->
+ <a-entity id="entity" position="-100 0 -100" visible="false"></a-entity>
+ <a-entity id="exit-key" position="45.6 1.15 45.6">
+  <a-octahedron id="key-mesh" radius=".27" material="color:#ff2424;emissive:#d00000;emissiveIntensity:1.2" animation="property:rotation;to:0 360 0;loop:true;dur:3000;easing:linear"></a-octahedron>
+  <a-light id="key-light" type="point" color="#ff2424" intensity="1.2" distance="4.2"></a-light>
+ </a-entity>
+ <a-entity id="exit-portal" position="45.6 1.25 2.4">
+  <a-torus id="portal-mesh" visible="false" radius=".72" radius-tubular=".09" material="color:#56e9e0;emissive:#168e9b;emissiveIntensity:1.2" animation="property:rotation;to:0 0 360;loop:true;dur:6500;easing:linear"></a-torus>
+  <a-light id="portal-light" type="point" color="#45dbe5" intensity="0" distance="4.5"></a-light>
+ </a-entity>
+</a-scene>
+
+<script>
+(function(){
+'use strict';
+const SIZE=21,CELL=2.4,WALL_H=3.1,RADIUS=.35,SPEED=3.2;
+const LEVELS=[
+ {name:'NIVEL 0 — THE LOBBY',wall:'#c8b77c',floor:'#65593c',ceiling:'#c2b596',fog:'#82764a',ambient:'#fff0c2',power:.68,density:.024,portal:'#55e4db'},
+ {name:'NIVEL 1 — HABITABLE ZONE',wall:'#77857d',floor:'#3d514a',ceiling:'#343c3b',fog:'#4b5952',ambient:'#cfe5d8',power:.55,density:.03,portal:'#78f0a0'},
+ {name:'NIVEL 2 — PIPE DREAMS',wall:'#505963',floor:'#252c34',ceiling:'#30353c',fog:'#20252c',ambient:'#9eb0cb',power:.38,density:.036,portal:'#ff9a55'},
+ {name:'NIVEL 3 — ELECTRICAL STATION',wall:'#50433d',floor:'#29221f',ceiling:'#302824',fog:'#1c1715',ambient:'#c89e78',power:.3,density:.042,portal:'#e5b6ff'}
+];
+const $=id=>document.getElementById(id),scene=$('scene'),rig=$('rig'),camera=$('camera');
+const glitchCanvas=$('glitch-canvas'),gCtx=glitchCanvas.getContext('2d'),fallOverlay=$('fall-overlay'),vrGlitch=$('vr-glitch-plane');
+let levelIndex=0,grid=[],started=false,keyFound=false,levelBusy=false,isFalling=false;
+let joy={x:0,y:0},keys={},joyPointer=null,lookPointer=null,lookLast={x:0,y:0};
+let yaw=Math.PI,pitch=0,tmpF=null,tmpR=null,wallGeo=null,wallMat=null,wallMesh=null;
+let lamps=[],lampPool=[],lampPower=1,flickerTimer=0,flickerIntensity=1;
+let glitchLevel=.05,glitchTimer=0,entityPos={x:-100,z:-100},entityActive=false,entityDist=999,entityPath=[],pathTimer=0;
+let levelTime=0,totalTime=0,lastSecond=-1,flashlightOn=true,soundOn=false,audioCtx=null,humGain=null,staticGain=null;
+let inVR=false,xrSession=null,autoWalk=false,lookDownAutoWalk=false,snapLatch=false,vrAdvanceTimer=null,fallRaf=0;
+// [v8] Estado de la sombra
+const shadow={body:null,stain:null,echoes:[],light:null,history:[],histTimer:0,time:0};
+let shadowProx=0,shadowLit=false,baseFog=null,baseDensity=.024,tmpC=null,BLACK=null,shadowGain=null,shadowPan=null;
+const isPC=matchMedia('(hover:hover) and (pointer:fine)').matches;
+const $hint=isPC?'WASD: moverse · Mouse arrastrar: mirar · La linterna frena a la sombra':'Joystick: moverse · Lado derecho: mirar · La linterna frena a la sombra';
+function resizeGlitch(){glitchCanvas.width=Math.max(1,Math.min(innerWidth/2,480));glitchCanvas.height=Math.max(1,Math.min(innerHeight/2,320));}
+resizeGlitch();addEventListener('resize',resizeGlitch);
+
+/* ======================================================================
+   [v8] SHADERS DE LA SOMBRA
+   - Cuerpo: silueta de humo negro que asciende, con franjas desplazadas,
+     bordes con aberración cromática (rojo/cian), bloques que se caen,
+     estática y dos ojos rojos que parpadean.
+   - Mancha: oscuridad que se derrama por el suelo con tentáculos.
+   Ambos respetan la niebla de la escena para fundirse a la distancia.
+   ====================================================================== */
+const SHADOW_VERT=`
+varying vec2 vUv;varying float vDepth;
+void main(){vUv=uv;vec4 mv=modelViewMatrix*vec4(position,1.0);vDepth=-mv.z;gl_Position=projectionMatrix*mv;}`;
+const NOISE_GLSL=`
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+ return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
+float fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<4;i++){v+=a*noise(p);p*=2.03;a*=0.5;}return v;}`;
+const BODY_FRAG=`
+uniform float uTime,uGlitch,uProx,uOpacity,uSeed,uEyes,uFogDensity;
+uniform vec3 uFogColor;
+varying vec2 vUv;varying float vDepth;
+${NOISE_GLSL}
+float shape(vec2 uv,float t){
+ float x=uv.x-0.5,y=uv.y;
+ float torso=length(vec2(x/0.24,(y-0.42)/0.40));
+ float head=length(vec2(x/0.11,(y-0.86)/0.085));
+ float d=min(torso,head);
+ d+=(fbm(vec2(x*4.0+uSeed,y*3.0-t*0.9))-0.5)*0.9;
+ d+=(fbm(vec2(x*9.0-uSeed,y*7.0-t*1.7))-0.5)*0.35;
+ d-=(1.0-smoothstep(0.0,0.16,y))*0.4;
+ return 1.0-smoothstep(0.72,1.0,d);
+}
+void main(){
+ vec2 uv=vUv;float t=uTime,g=uGlitch;
+ float tick=floor(t*14.0+uSeed*7.0);
+ float band=floor(uv.y*28.0);
+ if(hash(vec2(band,tick))>1.0-0.35*g)uv.x+=(hash(vec2(band+3.0,tick))-0.5)*0.35*g;
+ uv.x+=step(0.93-0.2*g,hash(vec2(tick,uSeed+1.0)))*(hash(vec2(tick,2.0))-0.5)*0.12;
+ float off=0.012+0.04*g;
+ float aC=shape(uv,t),aR=shape(uv+vec2(off,0.0),t),aB=shape(uv-vec2(off,0.0),t);
+ float a=max(aC,max(aR,aB));
+ vec3 col=vec3(max(aR-aC,0.0)*0.9,0.0,max(aB-aC,0.0)*0.85)*(0.5+g);
+ if(hash(floor(uv*vec2(9.0,22.0))+vec2(tick))>0.985-0.05*g)a*=0.15;
+ col+=vec3(step(0.985,hash(uv*vec2(160.0,90.0)+vec2(t)))*aC*0.3*g);
+ a*=0.85+0.15*sin(uv.y*220.0+t*30.0);
+ vec2 d1=(vUv-vec2(0.48,0.865))*vec2(1.7,2.9),d2=(vUv-vec2(0.52,0.865))*vec2(1.7,2.9);
+ float eye=(1.0-smoothstep(0.0,0.025,length(d1)))+(1.0-smoothstep(0.0,0.025,length(d2)));
+ float blink=step(0.22,hash(vec2(floor(t*3.0),uSeed+9.0)))*uEyes;
+ col+=vec3(1.0,0.06,0.03)*eye*blink*(0.4+uProx*1.4);
+ a=max(a,eye*blink*0.95);
+ float fogF=1.0-exp(-uFogDensity*uFogDensity*vDepth*vDepth);
+ col=mix(col,uFogColor,fogF*0.8);
+ a*=(1.0-fogF*0.5)*uOpacity;
+ gl_FragColor=vec4(pow(max(col,vec3(0.0)),vec3(1.0/2.2)),clamp(a,0.0,1.0));
+}`;
+const STAIN_FRAG=`
+uniform float uTime,uProx,uFogDensity;
+uniform vec3 uFogColor;
+varying vec2 vUv;varying float vDepth;
+${NOISE_GLSL}
+void main(){
+ vec2 p=vUv*2.0-1.0;float r=length(p);
+ vec2 dir=p/(r+0.001);
+ float n=fbm(p*2.5+vec2(uTime*0.25,-uTime*0.2));
+ float tend=pow(fbm(dir*3.0+vec2(r*2.5-uTime*0.7)),2.0)*0.7;
+ float a=1.0-smoothstep(0.2,1.0,r+(n-0.5)*0.55-tend*0.6);
+ a*=0.92*(0.75+uProx*0.25)*(1.0-smoothstep(0.85,1.0,r));
+ float fogF=1.0-exp(-uFogDensity*uFogDensity*vDepth*vDepth);
+ vec3 col=mix(vec3(0.0),uFogColor,fogF*0.8);
+ gl_FragColor=vec4(pow(col,vec3(1.0/2.2)),clamp(a*(1.0-fogF*0.5),0.0,1.0));
+}`;
+function makeBodyMat(opacity,seed,eyes){
+ return new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0},uGlitch:{value:0},uProx:{value:0},uOpacity:{value:opacity},uSeed:{value:seed},uEyes:{value:eyes},uFogColor:{value:new THREE.Color()},uFogDensity:{value:.03}},
+  vertexShader:SHADOW_VERT,fragmentShader:BODY_FRAG,transparent:true,depthWrite:false,side:THREE.DoubleSide
+ });
+}
+// Se crea una sola vez al iniciar el juego.
+function createShadow(){
+ const ent=$('entity').object3D;
+ const bodyGeo=new THREE.PlaneGeometry(1.7,2.9);bodyGeo.translate(0,1.45,0);
+ shadow.body=new THREE.Mesh(bodyGeo,makeBodyMat(1,0,1));shadow.body.renderOrder=3;shadow.body.frustumCulled=false;ent.add(shadow.body);
+ const stainGeo=new THREE.PlaneGeometry(4.6,4.6);stainGeo.rotateX(-Math.PI/2);
+ shadow.stain=new THREE.Mesh(stainGeo,new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0},uProx:{value:0},uFogColor:{value:new THREE.Color()},uFogDensity:{value:.03}},
+  vertexShader:SHADOW_VERT,fragmentShader:STAIN_FRAG,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2
+ }));
+ shadow.stain.position.y=.025;shadow.stain.renderOrder=1;shadow.stain.frustumCulled=false;ent.add(shadow.stain);
+ // Ecos: copias semitransparentes que quedan atrás cuando avanza (efecto de arrastre).
+ shadow.echoes=[.42,.26,.13].map((op,i)=>{const m=new THREE.Mesh(bodyGeo,makeBodyMat(op,i+1.7,0));m.renderOrder=2;m.visible=false;m.frustumCulled=false;scene.object3D.add(m);return m;});
+ // Luz NEGATIVA: resta iluminación alrededor de la sombra (devora la luz de paredes y piso).
+ shadow.light=new THREE.PointLight(0xffffff,0,6.5,1);scene.object3D.add(shadow.light);
+}
+
+function makeMaze(){
+ const g=Array.from({length:SIZE},()=>Array(SIZE).fill(1)),stack=[[1,1]],dirs=[[0,-2],[2,0],[0,2],[-2,0]];g[1][1]=0;
+ while(stack.length){const [r,c]=stack[stack.length-1],opts=dirs.filter(([dr,dc])=>r+dr>0&&r+dr<SIZE-1&&c+dc>0&&c+dc<SIZE-1&&g[r+dr][c+dc]===1);
+  if(!opts.length){stack.pop();continue;}const [dr,dc]=opts[Math.floor(Math.random()*opts.length)];g[r+dr/2][c+dc/2]=0;g[r+dr][c+dc]=0;stack.push([r+dr,c+dc]);}
+ return g;
+}
+function isWall(r,c){return r<0||c<0||r>=SIZE||c>=SIZE||grid[r][c]===1;}
+function canMove(x,z){
+ const c0=Math.floor(x/CELL),r0=Math.floor(z/CELL),h=CELL/2;
+ for(let r=r0-1;r<=r0+1;r++)for(let c=c0-1;c<=c0+1;c++){if(!isWall(r,c))continue;
+  const bx=c*CELL,bz=r*CELL,px=Math.max(bx-h,Math.min(x,bx+h)),pz=Math.max(bz-h,Math.min(z,bz+h));
+  if((x-px)**2+(z-pz)**2<RADIUS*RADIUS)return false;
+ }return true;
+}
+// [v8] ¿Hay línea de visión entre dos puntos? (para saber si la linterna realmente alcanza a la sombra)
+function hasLOS(ax,az,bx,bz){const d=Math.hypot(bx-ax,bz-az),n=Math.ceil(d/.4);for(let i=1;i<n;i++){const t=i/n,x=ax+(bx-ax)*t,z=az+(bz-az)*t;if(isWall(Math.round(z/CELL),Math.round(x/CELL)))return false;}return true;}
+function buildMeshes(cfg){
+ const container=$('maze-container').object3D;
+ if(!wallGeo){wallGeo=new THREE.BoxGeometry(CELL,WALL_H,CELL);wallMat=new THREE.MeshStandardMaterial({color:cfg.wall,roughness:.96});}
+ wallMat.color.set(cfg.wall);
+ if(wallMesh){container.remove(wallMesh);wallMesh=null;}
+ const cells=[];for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++)if(grid[r][c])cells.push([r,c]);
+ const matrix=new THREE.Matrix4();wallMesh=new THREE.InstancedMesh(wallGeo,wallMat,cells.length);
+ cells.forEach(([r,c],i)=>{matrix.makeTranslation(c*CELL,WALL_H/2,r*CELL);wallMesh.setMatrixAt(i,matrix);});
+ wallMesh.instanceMatrix.needsUpdate=true;wallMesh.frustumCulled=false;container.add(wallMesh);
+}
+function pickLamps(){
+ const out=[];for(let br=0;br<3;br++)for(let bc=0;bc<4;bc++){const r0=1+Math.floor(br*19/3),r1=1+Math.floor((br+1)*19/3),c0=1+Math.floor(bc*19/4),c1=1+Math.floor((bc+1)*19/4),opts=[];
+  for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++)if(!grid[r][c])opts.push([r,c]);
+  if(opts.length){const [r,c]=opts[Math.floor(Math.random()*opts.length)];out.push({x:c*CELL,z:r*CELL});}
+ }return out;
+}
+function setLook(){const lc=camera.components['look-controls'];if(lc&&lc.yawObject&&lc.pitchObject){lc.yawObject.rotation.y=yaw;lc.pitchObject.rotation.x=pitch;}else camera.object3D.rotation.set(pitch,yaw,0);}
+function updateLook(dx,dy){yaw-=dx*.004;pitch=Math.max(-1.35,Math.min(1.35,pitch-dy*.0032));setLook();}
+function updateBasis(){const cam=scene.camera;if(cam){cam.getWorldDirection(tmpF);tmpF.y=0;}if(!cam||tmpF.lengthSq()<1e-5)tmpF.set(-Math.sin(yaw),0,-Math.cos(yaw));tmpF.normalize();tmpR.set(-tmpF.z,0,tmpF.x);}
+function readXR(){
+ const out={f:0,s:0};if(!xrSession)return out;
+ for(const src of xrSession.inputSources||[]){const gp=src.gamepad;if(!gp||!gp.axes||!gp.axes.length)continue;
+  const ax=gp.axes.length>=4?gp.axes[2]:(gp.axes[0]||0),ay=gp.axes.length>=4?gp.axes[3]:(gp.axes[1]||0);
+  if(src.handedness==='right'){if(Math.abs(ax)>.72&&!snapLatch){snapLatch=true;rig.object3D.rotation.y-=Math.sign(ax)*Math.PI/6;}else if(Math.abs(ax)<.25)snapLatch=false;}
+  else{if(Math.abs(ax)>.16)out.s+=ax;if(Math.abs(ay)>.16)out.f-=ay;}
+ }return out;
+}
+function readInput(){
+ let f=-joy.y,s=joy.x;if(keys.KeyW||keys.ArrowUp)f++;if(keys.KeyS||keys.ArrowDown)f--;if(keys.KeyA||keys.ArrowLeft)s--;if(keys.KeyD||keys.ArrowRight)s++;
+ if(inVR){const dir=new THREE.Vector3();if(scene.camera){scene.camera.getWorldDirection(dir);lookDownAutoWalk=dir.y<-.68;}const v=readXR();f+=v.f;s+=v.s;if(autoWalk||lookDownAutoWalk)f++;}
+ const n=Math.hypot(f,s);if(n>1){f/=n;s/=n;}return {f,s};
+}
+function movePlayer(dt){if(isFalling)return;const {f,s}=readInput();if(f||s){updateBasis();const p=rig.object3D.position,mx=(tmpF.x*f+tmpR.x*s)*SPEED*dt,mz=(tmpF.z*f+tmpR.z*s)*SPEED*dt;if(canMove(p.x+mx,p.z))p.x+=mx;if(canMove(p.x,p.z+mz))p.z+=mz;}checkObjectives();}
+function bfsPath(startX,startZ,targetX,targetZ){
+ const sr=Math.max(1,Math.min(SIZE-2,Math.round(startZ/CELL))),sc=Math.max(1,Math.min(SIZE-2,Math.round(startX/CELL)));
+ const tr=Math.max(1,Math.min(SIZE-2,Math.round(targetZ/CELL))),tc=Math.max(1,Math.min(SIZE-2,Math.round(targetX/CELL)));
+ const key=(r,c)=>r+','+c,queue=[[sr,sc]],prev=new Map([[key(sr,sc),null]]),dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+ for(let i=0;i<queue.length;i++){const [r,c]=queue[i];if(r===tr&&c===tc)break;for(const [dr,dc] of dirs){const nr=r+dr,nc=c+dc,k=key(nr,nc);if(nr<1||nc<1||nr>=SIZE-1||nc>=SIZE-1||grid[nr][nc]||prev.has(k))continue;prev.set(k,key(r,c));queue.push([nr,nc]);}}
+ let k=key(tr,tc);if(!prev.has(k))return [];const path=[];while(k){const [r,c]=k.split(',').map(Number);path.push({x:c*CELL,z:r*CELL});k=prev.get(k);}return path.reverse().slice(1);
+}
+function spawnEntity(){const cells=[];for(let r=2;r<SIZE-2;r++)for(let c=2;c<SIZE-2;c++)if(!grid[r][c])cells.push({x:c*CELL,z:r*CELL});
+ const p=rig.object3D.position;cells.sort((a,b)=>Math.hypot(b.x-p.x,b.z-p.z)-Math.hypot(a.x-p.x,a.z-p.z));const q=cells[0]||{x:SIZE*CELL/2,z:SIZE*CELL/2};
+ entityPos={x:q.x,z:q.z};$('entity').object3D.position.set(q.x,0,q.z);$('entity').setAttribute('visible',true);entityActive=true;entityDist=999;pathTimer=0;entityPath=[];
+ shadow.history=[];shadow.echoes.forEach(m=>m.visible=false);
+}
+function updateEntity(dt){
+ if(!entityActive||isFalling)return;const p=rig.object3D.position,dx=p.x-entityPos.x,dz=p.z-entityPos.z;entityDist=Math.hypot(dx,dz);
+ if(entityDist<.85&&!levelBusy){jumpscare();return;}
+ // [v8] ¿La linterna la está iluminando? (mirás hacia ella, cerca y sin paredes en medio)
+ updateBasis();shadowLit=false;
+ if(flashlightOn&&entityDist<9&&entityDist>.01){const dot=(-dx*tmpF.x-dz*tmpF.z)/entityDist;if(dot>.94&&hasLOS(p.x,p.z,entityPos.x,entityPos.z))shadowLit=true;}
+ pathTimer-=dt;if(pathTimer<=0){entityPath=bfsPath(entityPos.x,entityPos.z,p.x,p.z);pathTimer=.55;}
+ let target=entityPath[0];if(target){const tx=target.x-entityPos.x,tz=target.z-entityPos.z,d=Math.hypot(tx,tz);if(d<.18)entityPath.shift();else{
+  // La luz la frena al 35% de su velocidad.
+  const spd=2.05*(.85+glitchLevel*.9)*(shadowLit?.35:1),step=Math.min(d,spd*dt);entityPos.x+=tx/d*step;entityPos.z+=tz/d*step;}}
+ $('entity').object3D.position.set(entityPos.x,0,entityPos.z);
+ if(entityDist<8)glitchLevel=Math.min(1,glitchLevel+(1-entityDist/8)*.35*dt);
+}
+/* [v8] Efectos de la sombra en cada cuadro: shader, ecos, luz negativa,
+   niebla que se cierra, linterna que falla y sonido que se acerca. */
+function updateShadowFX(dt){
+ if(!shadow.body)return;
+ const prox=entityActive?Math.max(0,Math.min(1,1-entityDist/10)):0;shadowProx=prox;shadow.time+=dt;
+ const fog=scene.object3D.fog,g=Math.min(1,glitchLevel*.55+prox*.55+(shadowLit?.6:0));
+ const mats=[shadow.body.material,shadow.stain.material].concat(shadow.echoes.map(e=>e.material));
+ mats.forEach(m=>{const u=m.uniforms;u.uTime.value=shadow.time;u.uProx.value=prox;if(u.uGlitch)u.uGlitch.value=g;if(fog){u.uFogColor.value.copy(fog.color);u.uFogDensity.value=fog.density;}});
+ shadow.echoes.forEach(e=>e.material.uniforms.uGlitch.value=Math.min(1,g+.3));
+ // Orientar cuerpo y ecos hacia la cámara
+ if(scene.camera)scene.camera.getWorldPosition(tmpC);
+ $('entity').object3D.rotation.y=Math.atan2(tmpC.x-entityPos.x,tmpC.z-entityPos.z);
+ shadow.histTimer+=dt;if(shadow.histTimer>.07){shadow.histTimer=0;shadow.history.push({x:entityPos.x,z:entityPos.z});if(shadow.history.length>14)shadow.history.shift();}
+ shadow.echoes.forEach((m,i)=>{const h=shadow.history[shadow.history.length-1-(i+1)*3];
+  if(!h||!entityActive){m.visible=false;return;}
+  m.visible=Math.hypot(h.x-entityPos.x,h.z-entityPos.z)>.12; // solo se ven cuando avanza
+  m.position.set(h.x,0,h.z);m.rotation.y=Math.atan2(tmpC.x-h.x,tmpC.z-h.z);});
+ shadow.stain.scale.setScalar(1+prox*.6);
+ // Luz negativa: oscurece el entorno alrededor de la sombra
+ shadow.light.position.set(entityPos.x,1.3,entityPos.z);shadow.light.intensity=entityActive?-(1.3+prox*1.7):0;
+ // La niebla se oscurece y se espesa al acercarse
+ if(fog&&baseFog){fog.color.copy(baseFog).lerp(BLACK,prox*.6);fog.density=baseDensity*(1+prox*.9);const bg=scene.object3D.background;if(bg&&bg.isColor)bg.copy(fog.color);}
+ // La linterna falla cuando está cerca
+ const fl=$('flashlight').getObject3D('light');if(fl){let it=flashlightOn?1.85:0;if(it&&prox>.25&&Math.random()<prox*.22)it*=Math.random()*.25;fl.intensity=it;}
+ // Sonido: zumbido grave + respiración de ruido, paneado hacia donde está
+ if(shadowGain&&audioCtx){const now=audioCtx.currentTime;shadowGain.gain.setTargetAtTime(soundOn?prox*prox*.4:0,now,.1);
+  if(shadowPan&&entityActive){const p=rig.object3D.position,vx=entityPos.x-p.x,vz=entityPos.z-p.z,d=Math.max(.01,Math.hypot(vx,vz));shadowPan.pan.setTargetAtTime(Math.max(-1,Math.min(1,(vx*tmpR.x+vz*tmpR.z)/d)),now,.1);}}
+}
+function checkObjectives(){const p=rig.object3D.position;if(!keyFound){const k=$('exit-key').object3D.position;if(Math.hypot(p.x-k.x,p.z-k.z)<1.15){keyFound=true;$('key-mesh').object3D.visible=false;$('key-light').setAttribute('light','intensity',0);$('portal-mesh').object3D.visible=true;$('portal-light').setAttribute('light','intensity',.9);status('¡Llave encontrada! Busca el portal');ping();}}
+ else{const q=$('exit-portal').object3D.position;if(Math.hypot(p.x-q.x,p.z-q.z)<1.3)startFall();}}
+// [v8] "dark" agrega franjas negras y oscurecimiento cuando la sombra está cerca
+function renderGlitch(lvl,dark=0){const w=glitchCanvas.width,h=glitchCanvas.height;gCtx.clearRect(0,0,w,h);const top=Math.max(lvl,dark);if(top<.08){glitchCanvas.style.opacity=0;vrGlitch.setAttribute('material','opacity',0);return;}
+ glitchCanvas.style.opacity=Math.min(.92,top);vrGlitch.setAttribute('material','opacity',Math.min(.65,Math.max(lvl*.5,dark*.65)));
+ if(dark>.05){gCtx.fillStyle=`rgba(0,0,0,${dark*.35})`;gCtx.fillRect(0,0,w,h);for(let i=0;i<Math.floor(dark*12);i++){const off=(Math.random()-.5)*60*dark;gCtx.fillStyle=`rgba(0,0,0,${.35+dark*.5})`;gCtx.fillRect(off,Math.random()*h,w,Math.random()*h*.09+2);}}
+ const slices=Math.floor(lvl*14)+1;for(let i=0;i<slices;i++){const y=Math.random()*h,sh=Math.random()*h*.15+2,off=(Math.random()-.5)*35*lvl;gCtx.fillStyle=Math.random()>.5?`rgba(255,40,40,${.18*lvl})`:`rgba(40,255,240,${.18*lvl})`;gCtx.fillRect(off,y,w,sh);}
+ for(let i=0;i<Math.floor(lvl*22);i++){gCtx.fillStyle=`rgba(255,255,255,${Math.random()*.3*lvl})`;gCtx.fillRect(0,Math.random()*h,w,2);}
+}
+function updateGlitch(dt){glitchLevel=Math.min(1,glitchLevel+dt*(keyFound?.016:.007));glitchTimer+=dt;if(glitchTimer>.045){glitchTimer=0;renderGlitch(glitchLevel,shadowProx);}
+ const pct=Math.round(glitchLevel*100),chip=$('threat-chip'),lit=shadowLit?' · 🔦 FRENADA':'';if(pct<35){chip.textContent=`SEÑAL: ${100-pct}% [ESTABLE]${lit}`;chip.style.color='#f0d67f';}else if(pct<70){chip.textContent=`INTERFERENCIA: ${pct}% [ACECHO]${lit}`;chip.style.color='#ffb03a';}else{chip.textContent=`PELIGRO CRÍTICO: ${pct}%${lit}`;chip.style.color='#ff3333';}
+ if(staticGain&&audioCtx)staticGain.gain.setTargetAtTime(soundOn?.015+glitchLevel*.12:0,audioCtx.currentTime,.06);
+}
+function jumpscare(){levelBusy=true;stopInput();burst();fallOverlay.style.opacity=.88;renderGlitch(1,1);vrGlitch.setAttribute('material','opacity',.95);$('message-title').textContent='HAS SIDO ATRAPADO';$('message-text').textContent='La sombra te envolvió. La señal se perdió en la oscuridad.';$('message-primary').textContent='Reintentar nivel';$('message-secondary').style.display='none';$('message').style.display='block';}
+function startFall(){if(levelBusy)return;levelBusy=true;isFalling=true;stopInput();fallOverlay.style.opacity=.38;fallSound();burst();let y=0,v=0,last=performance.now();
+ function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;v+=17*dt;y-=v*dt;rig.object3D.position.y=y;camera.object3D.rotation.z=(Math.random()-.5)*.12;renderGlitch(.9);
+  if(y>-18){fallRaf=requestAnimationFrame(frame);}else{fallOverlay.style.opacity=1;setTimeout(finishFall,450);}}
+ fallRaf=requestAnimationFrame(frame);
+}
+function finishFall(){cancelAnimationFrame(fallRaf);isFalling=false;rig.object3D.position.y=0;camera.object3D.rotation.z=0;fallOverlay.style.opacity=0;
+ const last=levelIndex===LEVELS.length-1,title=last?'¡ESCAPASTE DE LAS TRASTIENDAS!':'¡NIVEL SUPERADO TRAS LA CAÍDA!',times=`Tiempo: ${fmt(levelTime)} · Acumulado: ${fmt(totalTime)}`;
+ if(inVR){setVRText(`${title}\n${times}\nAterrizando…`);clearTimeout(vrAdvanceTimer);vrAdvanceTimer=setTimeout(nextLevel,3000);return;}
+ $('message-title').textContent=title;$('message-text').textContent=(last?'Has cruzado la salida final.':'Has caído hacia la siguiente profundidad.')+'\n'+times;$('message-primary').textContent=last?'Volver al inicio':'Siguiente nivel';$('message-secondary').style.display='inline-block';$('message-secondary').textContent='Reiniciar nivel';$('message').style.display='block';
+}
+// [v8] Las lámparas cercanas a la sombra se apagan y parpadean más
+function lampDim(slot){if(!entityActive||slot.lamp<0||!lamps[slot.lamp])return 1;const l=lamps[slot.lamp],d=Math.hypot(l.x-entityPos.x,l.z-entityPos.z);return Math.max(.05,Math.min(1,(d-1.2)/4.5));}
+function updateLights(dt){if(!lamps.length||!lampPool.length)return;const p=rig.object3D.position,nearest=lamps.map((l,i)=>({i,d:(l.x-p.x)**2+(l.z-p.z)**2})).sort((a,b)=>a.d-b.d).slice(0,2).map(o=>o.i);
+ flickerTimer+=dt;if(flickerTimer>.08){flickerTimer=0;flickerIntensity=Math.random()<.06+glitchLevel*.35+shadowProx*.3?Math.random()*.2:.92+Math.random()*.16;}
+ lampPool.forEach(slot=>{if(!nearest.includes(slot.lamp)){const free=nearest.find(i=>!lampPool.some(s=>s!==slot&&s.lamp===i));if(free!==undefined){slot.lamp=free;slot.el.object3D.position.set(lamps[free].x,WALL_H-.35,lamps[free].z);}}
+ const target=nearest.includes(slot.lamp)?lampPower*flickerIntensity*lampDim(slot):0;slot.cur+=(target-slot.cur)*Math.min(1,dt*6);const l=slot.el.getObject3D('light');if(l)l.intensity=slot.cur;});
+}
+function fmt(t){const s=Math.floor(t);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+function updateTimer(){const s=Math.floor(levelTime);if(s!==lastSecond){lastSecond=s;$('timer').textContent=`● REC ${fmt(levelTime)}`;}}
+function setVRText(t){$('vr-text').setAttribute('value',t);}
+function status(t){$('hud-status').textContent=t;setVRText(t+((autoWalk||lookDownAutoWalk)?'\n[AVANZANDO]':''));}
+function buildLevel(index){
+ const cfg=LEVELS[index];grid=makeMaze();lamps=pickLamps();buildMeshes(cfg);
+ const center=(SIZE-1)*CELL/2,extent=SIZE*CELL;$('floor').setAttribute('position',`${center} 0 ${center}`);$('floor').setAttribute('width',extent);$('floor').setAttribute('height',extent);$('floor').setAttribute('material','color',cfg.floor);
+ $('ceiling').setAttribute('position',`${center} ${WALL_H} ${center}`);$('ceiling').setAttribute('width',extent);$('ceiling').setAttribute('height',extent);$('ceiling').setAttribute('material','color',cfg.ceiling);
+ scene.setAttribute('background','color',cfg.fog);scene.setAttribute('fog',`type:exponential;color:${cfg.fog};density:${cfg.density}`);
+ baseFog=new THREE.Color(cfg.fog);baseDensity=cfg.density; // [v8] base para oscurecer la niebla según la cercanía
+ $('ambient').setAttribute('light',`type:ambient;color:${cfg.ambient};intensity:${cfg.power}`);$('main-light').setAttribute('light','intensity',index===0?.28:.16);
+ lampPower=(index===0?.5:index===1?.42:index===2?.38:.36)*2.1;lampPool.forEach(s=>{s.lamp=-1;s.cur=0;s.el.setAttribute('light','color',cfg.ambient);});
+ rig.object3D.position.set(CELL,0,CELL);rig.object3D.rotation.set(0,0,0);yaw=Math.PI;pitch=0;setLook();
+ $('exit-key').object3D.position.set((SIZE-2)*CELL,1.15,(SIZE-2)*CELL);$('key-mesh').object3D.visible=true;$('key-light').setAttribute('light','intensity',1.2);
+ $('exit-portal').object3D.position.set((SIZE-2)*CELL,1.25,CELL);$('portal-mesh').object3D.visible=false;$('portal-light').setAttribute('light','intensity',0);
+ $('portal-mesh').setAttribute('material',`color:${cfg.portal};emissive:${cfg.portal};emissiveIntensity:1.25`);$('portal-light').setAttribute('light','color',cfg.portal);
+ keyFound=false;levelBusy=false;isFalling=false;levelTime=0;lastSecond=-1;glitchLevel=.05;glitchTimer=0;entityActive=false;shadowLit=false;shadowProx=0;fallOverlay.style.opacity=0;
+ spawnEntity();updateTimer();$('level-name').textContent=cfg.name;status('Localiza la llave');$('hint').textContent=inVR?'VR activo · Stick izq: caminar · Mirar al suelo: avanzar':$hint;
+}
+function nextLevel(){clearTimeout(vrAdvanceTimer);$('message').style.display='none';if(levelIndex===LEVELS.length-1){levelIndex=0;totalTime=0;}else levelIndex++;buildLevel(levelIndex);}
+function restartLevel(){clearTimeout(vrAdvanceTimer);$('message').style.display='none';totalTime=Math.max(0,totalTime-levelTime);buildLevel(levelIndex);}
+function setupControls(){
+ const zone=$('joystick-zone'),knob=$('joystick-knob'),look=$('look-zone'),max=42;
+ function resetJoy(){joy={x:0,y:0};knob.style.transform='translate(0,0)';joyPointer=null;}
+ function updateJoy(x,y){const r=zone.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=x-cx,dy=y-cy,d=Math.hypot(dx,dy);if(d>max){dx=dx/d*max;dy=dy/d*max;}const n=Math.hypot(dx,dy),dead=5;if(n<dead)joy={x:0,y:0};else{const scale=(n-dead)/(max-dead);joy={x:dx/max*scale,y:dy/max*scale};}knob.style.transform=`translate(${dx}px,${dy}px)`;}
+ zone.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(joyPointer!==null)return;joyPointer=e.pointerId;zone.setPointerCapture(e.pointerId);updateJoy(e.clientX,e.clientY);});
+ zone.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();updateJoy(e.clientX,e.clientY);}});
+ zone.addEventListener('pointerup',e=>{if(e.pointerId===joyPointer)resetJoy();});zone.addEventListener('pointercancel',resetJoy);zone.addEventListener('lostpointercapture',resetJoy);
+ look.addEventListener('pointerdown',e=>{if(!started||(e.pointerType==='mouse'&&e.button!==0))return;lookPointer=e.pointerId;lookLast={x:e.clientX,y:e.clientY};try{look.setPointerCapture(e.pointerId);}catch(_){}e.preventDefault();});
+ look.addEventListener('pointermove',e=>{if(e.pointerId!==lookPointer)return;updateLook(e.clientX-lookLast.x,e.clientY-lookLast.y);lookLast={x:e.clientX,y:e.clientY};e.preventDefault();});
+ const end=e=>{if(e.pointerId===lookPointer)lookPointer=null;};look.addEventListener('pointerup',end);look.addEventListener('pointercancel',end);look.addEventListener('lostpointercapture',()=>lookPointer=null);
+ const gameKeys=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+ addEventListener('keydown',e=>{if(gameKeys.includes(e.code)){keys[e.code]=true;e.preventDefault();}});addEventListener('keyup',e=>{if(gameKeys.includes(e.code))keys[e.code]=false;});
+}
+function stopInput(){joy={x:0,y:0};keys={};$('joystick-knob').style.transform='translate(0,0)';}
+function initAudio(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;if(!audioCtx){audioCtx=new AC();humGain=audioCtx.createGain();humGain.gain.value=0;humGain.connect(audioCtx.destination);const filter=audioCtx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=420;filter.connect(humGain);
+ [60,120,180].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=i?'sine':'sawtooth';o.frequency.value=f;g.gain.value=[.2,.09,.035][i];o.connect(g).connect(filter);o.start();});
+ const size=audioCtx.sampleRate,buf=audioCtx.createBuffer(1,size,audioCtx.sampleRate),data=buf.getChannelData(0);for(let i=0;i<size;i++)data[i]=Math.random()*2-1;const noise=audioCtx.createBufferSource();noise.buffer=buf;noise.loop=true;const nf=audioCtx.createBiquadFilter();nf.type='bandpass';nf.frequency.value=1100;staticGain=audioCtx.createGain();staticGain.gain.value=0;noise.connect(nf).connect(staticGain).connect(audioCtx.destination);noise.start();
+ // [v8] Voz de la sombra: zumbido grave que "respira" + ruido sordo, con paneo estéreo
+ const so=audioCtx.createOscillator();so.type='sawtooth';so.frequency.value=38;
+ const lfo=audioCtx.createOscillator(),lfoGain=audioCtx.createGain();lfo.frequency.value=.3;lfoGain.gain.value=6;lfo.connect(lfoGain).connect(so.frequency);
+ const slp=audioCtx.createBiquadFilter();slp.type='lowpass';slp.frequency.value=160;
+ const nlp=audioCtx.createBiquadFilter();nlp.type='lowpass';nlp.frequency.value=380;
+ shadowGain=audioCtx.createGain();shadowGain.gain.value=0;so.connect(slp).connect(shadowGain);noise.connect(nlp).connect(shadowGain);
+ if(audioCtx.createStereoPanner){shadowPan=audioCtx.createStereoPanner();shadowGain.connect(shadowPan).connect(audioCtx.destination);}else shadowGain.connect(audioCtx.destination);
+ so.start();lfo.start();}
+ if(audioCtx.state==='suspended')audioCtx.resume();return true;}
+function setSound(on){if(!initAudio())return;soundOn=on;humGain.gain.setTargetAtTime(on?.065:0,audioCtx.currentTime,.08);staticGain.gain.setTargetAtTime(on?.015:0,audioCtx.currentTime,.08);if(!on&&shadowGain)shadowGain.gain.setTargetAtTime(0,audioCtx.currentTime,.08);$('btn-audio').textContent=on?'🔊 Sonido':'🔇 Silencio';}
+function tone(type){if(!audioCtx)return;if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),now=audioCtx.currentTime;o.type=type==='burst'?'sawtooth':'sine';o.frequency.setValueAtTime(type==='ping'?720:type==='fall'?220:90,now);o.frequency.exponentialRampToValueAtTime(type==='ping'?1440:type==='fall'?40:35,now+(type==='ping'?.3:1));g.gain.setValueAtTime(type==='burst'?.25:.18,now);g.gain.exponentialRampToValueAtTime(.001,now+(type==='ping'?.4:1.1));o.connect(g).connect(audioCtx.destination);o.start();o.stop(now+(type==='ping'?.41:1.15));}
+function ping(){tone('ping');}function burst(){tone('burst');}function fallSound(){tone('fall');}
+function startGame(){if(started||!window.AFRAME||!scene.hasLoaded)return;started=true;tmpF=new THREE.Vector3();tmpR=new THREE.Vector3();tmpC=new THREE.Vector3();BLACK=new THREE.Color(0,0,0);lampPool=[0,1].map(i=>({el:$('lamp-light-'+i),lamp:-1,cur:0}));
+ createShadow();try{setSound(true);}catch(e){console.warn(e);}setupControls();buildLevel(0);$('start-overlay').style.display='none';$('hud').style.display='flex';$('actions').style.display='flex';$('joystick-zone').style.display=isPC?'none':'flex';$('hint').style.display='block';scene.setAttribute('backrooms-loop','');}
+function showError(t){$('error-box').style.display='block';$('error-box').textContent=t;}
+if(!window.AFRAME){$('btn-start').textContent='ERROR DE MOTOR';showError('No se pudo cargar A-Frame. Comprueba tu conexión.');}
+else if(scene.hasLoaded){$('btn-start').disabled=false;$('btn-start').textContent='ENTRAR A LAS TRASTIENDAS';}
+else{scene.addEventListener('loaded',()=>{$('btn-start').disabled=false;$('btn-start').textContent='ENTRAR A LAS TRASTIENDAS';},{once:true});setTimeout(()=>{if(!scene.hasLoaded)showError('La carga está tardando. Comprueba tu conexión.');},12000);}
+if(window.AFRAME)AFRAME.registerComponent('backrooms-loop',{tick:function(t,ms){if(!started)return;const dt=Math.min((ms||0)/1000,.05);if(!levelBusy){movePlayer(dt);updateEntity(dt);updateShadowFX(dt);updateGlitch(dt);levelTime+=dt;totalTime+=dt;updateTimer();}updateLights(dt);}});
+$('btn-start').addEventListener('click',startGame);$('btn-audio').addEventListener('click',()=>setSound(!soundOn));
+$('btn-flashlight').addEventListener('click',()=>{flashlightOn=!flashlightOn;$('flashlight').setAttribute('light','intensity',flashlightOn?1.85:0);$('btn-flashlight').textContent=flashlightOn?'🔦 Linterna':'🌑 Linterna apagada';});
+$('message-primary').addEventListener('click',()=>{if($('message-title').textContent.includes('ATRAPADO'))restartLevel();else nextLevel();});
+$('message-secondary').addEventListener('click',restartLevel);
+function onXRSelect(e){if(e.inputSource&&e.inputSource.targetRayMode==='tracked-pointer')return;autoWalk=!autoWalk;setVRText($('hud-status').textContent+(autoWalk?'\n[AVANZANDO]':''));}
+scene.addEventListener('enter-vr',()=>{if(!scene.is('vr-mode'))return;inVR=true;autoWalk=false;stopInput();xrSession=scene.xrSession||(scene.renderer&&scene.renderer.xr&&scene.renderer.xr.getSession&&scene.renderer.xr.getSession())||null;if(xrSession)xrSession.addEventListener('select',onXRSelect);$('vr-text').setAttribute('visible',true);$('hint').textContent='VR activo · Stick izq: caminar · Mirar al suelo: avanzar';});
+scene.addEventListener('exit-vr',()=>{if(xrSession)xrSession.removeEventListener('select',onXRSelect);xrSession=null;inVR=false;autoWalk=false;lookDownAutoWalk=false;$('vr-text').setAttribute('visible',false);});
+scene.addEventListener('loaded',()=>{if(scene.renderer)scene.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.35));});
+addEventListener('resize',()=>{if(scene.renderer&&scene.camera)scene.resize();});addEventListener('blur',stopInput);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopInput();});
+})();
+</script>
+</body></html>
